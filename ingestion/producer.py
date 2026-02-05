@@ -9,6 +9,7 @@ simulate real-time data arrival without repeatedly calling the external API.
 import json
 import time
 from kafka import KafkaProducer
+from kafka.errors import NoBrokersAvailable
 
 KAFKA_BOOTSTRAP_SERVERS = "kafka:9092"
 TOPIC = "minutely_forecasts"
@@ -34,19 +35,26 @@ def load_weather_data(path: str) -> dict:
     with open(path) as f:
         return json.load(f)
 
-def create_producer() -> KafkaProducer:
+def create_producer(retries: int = 10, wait_seconds: int = 5) -> KafkaProducer:
     """
-    Create and configure a Kafka producer.
+    Create a Kafka producer with retry logic to handle broker startup delays.
+    """
+    for attempt in range(1, retries + 1):
+        try:
+            producer = KafkaProducer(
+                bootstrap_servers="kafka:9092",
+                value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+            )
+            print("Kafka producer connected successfully")
+            return producer
+        except NoBrokersAvailable:
+            print(
+                f"Kafka not available yet (attempt {attempt}/{retries}), "
+                f"retrying in {wait_seconds}s..."
+            )
+            time.sleep(wait_seconds)
 
-    Returns
-    -------
-    KafkaProducer
-        Configured Kafka producer instance.
-    """
-    return KafkaProducer(
-        bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
-        value_serializer=lambda v: json.dumps(v).encode("utf-8"),
-    )
+    raise RuntimeError("Failed to connect to Kafka after multiple retries")
 
 def main() -> None:
     """
