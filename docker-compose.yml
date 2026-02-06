@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
@@ -27,3 +25,29 @@ services:
     container_name: ingestion
     depends_on:
       - kafka
+  
+  spark:
+    build:
+      context: ./processing
+      dockerfile: Dockerfile.spark
+    container_name: spark
+    depends_on:
+      - kafka
+    volumes:
+      - ./processing:/app
+      - spark-ivy:/tmp/ivy
+    environment:
+      - SPARK_USER=root
+      - IVY_HOME=/tmp/ivy
+      - SPARK_SUBMIT_OPTS=-Divy.cache.dir=/tmp/ivy -Divy.home=/tmp/ivy
+    command: >
+      /opt/spark/bin/spark-submit
+      --master local[*]
+      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.2
+      /app/streaming_job.py
+ 
+volumes:
+  spark-ivy:
+
+
+
