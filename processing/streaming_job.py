@@ -83,13 +83,14 @@ def main() -> None:
         )
     )
 
-    # Write aggregated results to the console
+    # Write aggregated results to the console, checkpoint location in case spark crashes
     query = (
         aggregated_df
         .writeStream
         .outputMode("update")
         .format("console")
         .option("truncate", "false")
+        .option("checkpointLocation", "/tmp/spark-checkpoints/weather")
         .start()
     )
 
